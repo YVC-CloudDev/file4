@@ -20,35 +20,36 @@ name: Deploy to S3
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+      - master
   workflow_dispatch:
 
 permissions:
-  id-token: write    # Required for OIDC token generation
-  contents: read     # Required to checkout the repo
+  id-token: write
+  contents: read
 
 env:
   AWS_REGION: us-east-1
 
 jobs:
   deploy:
-    name: Upload to S3
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Verify AWS identity
+      - name: Check Identity
         run: aws sts get-caller-identity
 
-      - name: Sync files to S3
+      - name: Upload Files to S3
         run: |
           aws s3 sync . s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
