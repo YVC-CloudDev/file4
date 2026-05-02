@@ -1,22 +1,8 @@
 # ============================================================
-# DEPLOY TO AWS S3 — GitHub Actions Workflow
-# ============================================================
-# Automatically uploads the static website to an S3 bucket
-# whenever code is pushed to main.
-#
-# Uses OIDC (OpenID Connect) to authenticate with AWS —
-# no static access keys needed.
-#
-# ---- PREREQUISITES ----
-# 1. An S3 bucket configured for static website hosting.
-# 2. An IAM Role with s3:PutObject, s3:DeleteObject, and
-#    s3:ListBucket permissions, trusting the GitHub OIDC provider.
-# 3. Two GitHub repository secrets:
-#      • AWS_ROLE_ARN   — the ARN of the IAM Role
-#      • S3_BUCKET_NAME — the name of the S3 bucket
+# DEPLOY TO AWS S3 + CLOUDFRONT — GitHub Actions Workflow
 # ============================================================
 
-name: Deploy to S3
+name: Deploy to S3 and CloudFront
 
 on:
   push:
@@ -30,26 +16,32 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: eu-central-1
 
 jobs:
   deploy:
+    name: Upload to S3 and Invalidate CloudFront
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+
+      # 1. Get repository code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials
+      # 2. Configure AWS (OIDC)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Check Identity
+      # 3. Verify connection
+      - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      - name: Upload Files to S3
+      # 4. Upload files to S3
+      - name: Sync files to S3 bucket
         run: |
           aws s3 sync . s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
@@ -57,3 +49,12 @@ jobs:
             --exclude ".github/*" \
             --exclude "README.md" \
             --exclude "LICENSE"
+
+      # 5. Invalidate CloudFront cache
+      - name: Invalidate CloudFront cache
+        run: |
+          echo "Starting CloudFront invalidation..."
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} \
+            --paths "/*"
+          echo "Invalidation request sent successfully!"
