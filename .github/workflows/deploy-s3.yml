@@ -1,5 +1,5 @@
 # ============================================================
-# DEPLOY TO AWS S3 + CLOUDFRONT — GitHub Actions Workflow
+
 # ============================================================
 
 name: Deploy to S3 and CloudFront
